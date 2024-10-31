@@ -145,17 +145,24 @@ Respond with only the command to execute, no explanation."""
             await asyncio.sleep(1)
 
 async def main():
-       
     client = BatMudClient()
     try:
         await client.game_loop()
     except KeyboardInterrupt:
-        print("\nExiting...")
+        print("\nGracefully shutting down...")
+    except Exception as e:
+        print(f"\nError: {e}")
     finally:
         if client.telnet:
             reader, writer = client.telnet
-            writer.close()  # Just close the writer
-            await asyncio.sleep(0.1)  # Small delay to allow the connection to close gracefully
+            writer.close()
+            print("Connection closed.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nExiting...")
+    except Exception as e:
+        print(f"\nFatal error: {e}")
+    sys.exit(0)
