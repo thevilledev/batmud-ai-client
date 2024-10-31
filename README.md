@@ -2,7 +2,7 @@
 
 An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonomously.
 
-![batmud-ai-client](images/bat.png)
+<img src="images/bat.png" width="65%" height="65%">
 
 ## Prerequisites
 
