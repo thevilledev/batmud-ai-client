@@ -16,6 +16,7 @@ class BatMudClient:
         self.last_response = ""
         self.name_prefix = os.getenv("BATMUD_NAME_PREFIX", "claude")
         self.password = os.getenv("BATMUD_PASSWORD", "simakuutio")
+        self.game_state_length = 2000
 
     async def connect(self):
         """Establish connection to BatMUD server"""
@@ -74,39 +75,55 @@ class BatMudClient:
     async def get_claude_response(self):
         """Get Claude's decision based on current game state"""
         # Strip ANSI codes from game state before sending to Claude
-        clean_state = re.sub(r'\x1b\[[0-9;]*[mGKH]', '', self.game_state[-2000:])
-        
+        clean_state = re.sub(r'\x1b\[[0-9;]*[mGKH]', '', self.game_state[-self.game_state_length:])
+
         prompt = f"""You are playing BatMUD, a text-based multiplayer game. 
 Based on the current game state, decide what action to take next.
-If the game asks to create a character, respond with "create character". Set name to "{self.name_prefix}" and a random string of four letters.
+If the game asks to create a character, set name to "{self.name_prefix}" followed by a random string of four letters. The name should be all lowercase and without spaces.
 If the game asks for a password, respond with "{self.password}".
+If you are asked with a multiple choice question, respond with the number of the choice you want to select.
 Explore the world. If you are confronted with a monster, kill it.
 Current game state:
-{clean_state}  # Only use last 2000 chars to stay within context
+{clean_state}  # Limited context length
 
 Previous action taken:
 {self.last_response}
 
 Respond with only the command to execute, no explanation."""
 
-        try:
-            response = await asyncio.to_thread(
-                lambda: self.claude.messages.create(
-                    model="claude-3-opus-20240229",
-                    max_tokens=100,
-                    temperature=0.7,
-                    messages=[{
-                        "role": "user",
-                        "content": prompt
-                    }]
+        max_retries = 3
+        retry_delay = 1  # seconds
+
+        for attempt in range(max_retries):
+            try:
+                response = await asyncio.to_thread(
+                    lambda: self.claude.messages.create(
+                        model="claude-3-opus-20240229",
+                        max_tokens=100,
+                        temperature=0.7,
+                        messages=[{
+                            "role": "user",
+                            "content": prompt
+                        }]
+                    )
                 )
-            )
-            command = response.content[0].text.strip()
-            self.last_response = command
-            return command
-        except Exception as e:
-            print(f"Error getting Claude response: {e}")
-            return None
+                # Handle empty response with retry
+                if not response.content:
+                    print(f"Received empty response from Claude (attempt {attempt + 1}/{max_retries})")
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+                        continue
+                    return None
+
+                command = response.content[0].text.strip()
+                self.last_response = command
+                return command
+            except Exception as e:
+                print(f"Error getting Claude response (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                return None
 
     async def game_loop(self):
         """Main game loop"""
