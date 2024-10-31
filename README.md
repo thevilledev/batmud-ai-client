@@ -45,6 +45,14 @@ The client will automatically:
 
 Press `Ctrl+C` to exit.
 
+## API limitations
+
+Claude 3.5 Opus has a token limit of 1M tokens. You may tune the `game_state_length` in `main.py` to reduce the amount of context saved.
+
+Token caching might be useful to reduce the number of tokens sent to Claude.
+
+When playing, always monitor the token usage in the console.
+
 ## License
 
 MIT
