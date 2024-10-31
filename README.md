@@ -2,6 +2,8 @@
 
 An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonomously.
 
+![batmud-ai-client](images/bat.png)
+
 ## Prerequisites
 
 - Python 3.12+
@@ -15,7 +17,7 @@ An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonom
 git clone https://github.com/thevilledev/batmud-ai-client.git
 ```
 
-2. Install dependencies:
+2. Install dependencies (`venv` recommended):
 
 ```bash
 pip install -r requirements.txt
