@@ -53,6 +53,10 @@ Token caching might be useful to reduce the number of tokens sent to Claude.
 
 When playing, always monitor the token usage in the console.
 
+## Credits
+
+Thanks [@errnoh](https://github.com/errnoh) for the idea!
+
 ## License
 
 MIT
