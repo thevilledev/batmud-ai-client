@@ -7,6 +7,7 @@ from rich.text import Text
 import re
 from datetime import datetime
 
+
 class GameOutput(Static):
     def __init__(self):
         super().__init__("")
@@ -16,22 +17,26 @@ class GameOutput(Static):
     def update_content(self, new_content: str):
         # Strip ANSI codes
         clean_content = re.sub(r'\x1b\[[0-9;]*[mGKH]', '', new_content)
-        
+
         # Split and add new lines
-        new_lines = [line for line in re.split(r'\r?\n', clean_content) if line.strip()]
+        new_lines = [
+            line for line in re.split(
+                r'\r?\n',
+                clean_content) if line.strip()]
         self.text_content.extend(new_lines)
-        
+
         # Keep buffer size manageable
         if len(self.text_content) > self.max_lines:
             self.text_content = self.text_content[-self.max_lines:]
-        
+
         # Update display
         content = '\n'.join(self.text_content)
         self.update(Text(content, style="bold #00ff00"))
-        
+
         # Force scroll to bottom
         if self.parent:
             self.parent.scroll_end(animate=False)
+
 
 class AIDecisions(Static):
     def __init__(self):
@@ -42,30 +47,35 @@ class AIDecisions(Static):
     def add_decision(self, decision: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.decisions.append(f"[{timestamp}] {decision}")
-        
+
         # Keep only last N decisions
         if len(self.decisions) > self.max_decisions:
             self.decisions = self.decisions[-self.max_decisions:]
-        
+
         # Update display
         content = '\n'.join(self.decisions)
         self.update(Text(content, style="bold #00ff00"))
-        
+
         # Force scroll to bottom
         if self.parent:
             self.parent.scroll_end(animate=False)
 
+
 class GameUpdate(Message):
     """Message for game updates"""
+
     def __init__(self, content: str) -> None:
         self.content = content
         super().__init__()
 
+
 class AIUpdate(Message):
     """Message for AI updates"""
+
     def __init__(self, content: str) -> None:
         self.content = content
         super().__init__()
+
 
 class BatMudTUI(App):
     CSS = """
@@ -175,10 +185,10 @@ class BatMudTUI(App):
     async def action_quit(self) -> None:
         """Quit the application"""
         self.is_exiting = True
-        await self.shutdown() 
+        await self.shutdown()
 
     async def _on_key(self, event) -> None:
         """Handle key events"""
         if event.key == "q":
             self.is_exiting = True
-            self.exit()  # Use exit() instead of shutdown() 
+            self.exit()  # Use exit() instead of shutdown()

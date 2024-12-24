@@ -9,11 +9,13 @@ from tui import BatMudTUI, GameUpdate, AIUpdate
 from functools import partial
 from textual.message import Message
 
+
 class BatMudClient:
     def __init__(self):
         self.host = "batmud.bat.org"
         self.port = 2023
-        self.claude = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        self.claude = anthropic.Anthropic(
+            api_key=os.getenv("ANTHROPIC_API_KEY"))
         self.telnet: Optional[telnetlib3.Telnet] = None
         self.game_state = ""
         self.last_response = ""
@@ -28,23 +30,23 @@ class BatMudClient:
         try:
             await self.message_queue.put(GameUpdate("Starting BatMUD AI Client...\n"))
             await self.message_queue.put(GameUpdate(f"Connecting to {self.host}:{self.port}...\n"))
-            
+
             reader, writer = await telnetlib3.open_connection(
-                self.host, 
+                self.host,
                 self.port,
                 encoding='utf-8',
                 connect_minwait=0.05
             )
-            
+
             self.telnet = (reader, writer)
             await self.message_queue.put(GameUpdate(f"Successfully connected to {self.host}:{self.port}\n"))
-            
+
             # Try to read initial game data
             initial_data = await reader.read(1024)
             if initial_data:
                 await self.message_queue.put(GameUpdate(initial_data))
                 print(f"Initial game data: {initial_data!r}")
-            
+
         except Exception as e:
             await self.message_queue.put(GameUpdate(f"Failed to connect: {e}\n"))
             return False  # Return False instead of sys.exit()
@@ -55,17 +57,19 @@ class BatMudClient:
         try:
             reader, writer = self.telnet
             data = await reader.read(1024)  # Remove timeout for testing
-            
+
             if data:
-                print(f"DEBUG: Raw telnet data received: {data!r}")  # Debug print
+                print(
+                    f"DEBUG: Raw telnet data received: {
+                        data!r}")  # Debug print
                 self.game_state += data
                 await self.message_queue.put(GameUpdate(data))
                 return data
-                
+
         except Exception as e:
             print(f"Error reading game output: {e}")
             return None
-        
+
         return ""
 
     async def send_command(self, command: str):
@@ -82,9 +86,10 @@ class BatMudClient:
     async def get_claude_response(self):
         """Get Claude's decision based on current game state"""
         # Strip ANSI codes from game state before sending to Claude
-        clean_state = re.sub(r'\x1b\[[0-9;]*[mGKH]', '', self.game_state[-self.game_state_length:])
+        clean_state = re.sub(
+            r'\x1b\[[0-9;]*[mGKH]', '', self.game_state[-self.game_state_length:])
 
-        prompt = f"""You are playing BatMUD, a text-based multiplayer game. 
+        prompt = f"""You are playing BatMUD, a text-based multiplayer game.
 Based on the current game state, decide what action to take next.
 If the game asks to create a character, set name to "{self.name_prefix}" followed by a random string of four letters. The name should be all lowercase and without spaces.
 If the game asks for a password, respond with "{self.password}".
@@ -137,19 +142,25 @@ Respond with only the command to execute, no explanation."""
         while True:
             try:
                 message = await self.message_queue.get()
-                print(f"DEBUG: Processing message type: {type(message)}")  # Debug print
-                
+                print(
+                    f"DEBUG: Processing message type: {
+                        type(message)}")  # Debug print
+
                 if isinstance(message, GameUpdate):
-                    print(f"DEBUG: Game update content: {message.content!r}")  # Debug print
+                    print(
+                        f"DEBUG: Game update content: {
+                            message.content!r}")  # Debug print
                     await self.tui.handle_game_update(message)
                 elif isinstance(message, AIUpdate):
-                    print(f"DEBUG: AI update content: {message.content!r}")  # Debug print
+                    print(
+                        f"DEBUG: AI update content: {
+                            message.content!r}")  # Debug print
                     print(f"DEBUG: Sending AI update to TUI...")  # Debug print
                     await self.tui.handle_ai_update(message)
                     print(f"DEBUG: AI update sent to TUI")  # Debug print
                 else:
                     print(f"DEBUG: Unknown message type: {type(message)}")
-                
+
                 self.message_queue.task_done()
             except Exception as e:
                 print(f"Error in process_messages: {e}")
@@ -161,7 +172,7 @@ Respond with only the command to execute, no explanation."""
         """Main game loop"""
         if not await self.connect():
             return
-        
+
         message_processor = asyncio.create_task(self.process_messages())
 
         # Get initial AI response after connection
@@ -193,19 +204,20 @@ Respond with only the command to execute, no explanation."""
         finally:
             message_processor.cancel()
 
+
 async def main():
     client = BatMudClient()
-    
+
     try:
         # Start the TUI first
         tui_task = asyncio.create_task(client.tui.run_async())
-        
+
         # Give the TUI a moment to initialize
         await asyncio.sleep(1)
-        
+
         # Start the game loop
         game_task = asyncio.create_task(client.game_loop())
-        
+
         # Wait for the game task to complete or the TUI to exit
         while True:
             if game_task.done():
@@ -214,7 +226,7 @@ async def main():
                 game_task.cancel()
                 break
             await asyncio.sleep(0.1)
-            
+
     except KeyboardInterrupt:
         print("\nGracefully shutting down...")
     except Exception as e:
