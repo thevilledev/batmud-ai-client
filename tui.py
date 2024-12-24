@@ -12,17 +12,14 @@ class GameOutput(Static):
     def __init__(self):
         super().__init__("")
         self.text_content = []
-        self.max_lines = 1000
+        self.max_lines = 5000
 
     def update_content(self, new_content: str):
         # Strip ANSI codes
         clean_content = re.sub(r'\x1b\[[0-9;]*[mGKH]', '', new_content)
 
-        # Split and add new lines
-        new_lines = [
-            line for line in re.split(
-                r'\r?\n',
-                clean_content) if line.strip()]
+        # Split and add new lines, preserving empty lines for formatting
+        new_lines = clean_content.split('\n')
         self.text_content.extend(new_lines)
 
         # Keep buffer size manageable
@@ -42,7 +39,7 @@ class AIDecisions(Static):
     def __init__(self):
         super().__init__("")
         self.decisions = []
-        self.max_decisions = 100
+        self.max_decisions = 500
 
     def add_decision(self, decision: str):
         timestamp = datetime.now().strftime("%H:%M:%S")
