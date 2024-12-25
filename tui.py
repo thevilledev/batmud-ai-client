@@ -228,36 +228,36 @@ class LogView(Screen):
 class BatMudTUI(App):
     CSS = """
     Screen {
-        background: #000000;
+        background: #001100;  /* Very dark green background */
         layers: base overlay;
     }
 
     Header {
         dock: top;
-        background: #001100;
+        background: #002200;  /* Slightly lighter background for header */
         color: #00ff00;
-        border-bottom: solid #00ff00;
+        border-bottom: solid #00bb00;  /* Softer green for borders */
         height: 3;
     }
 
     Footer {
         dock: bottom;
-        background: #001100;
+        background: #002200;
         color: #00ff00;
-        border-top: solid #00ff00;
+        border-top: solid #00bb00;
         height: 3;
     }
 
     Horizontal {
         height: 100%;
         width: 100%;
-        background: #000000;
+        background: #001100;
     }
 
     .panel {
         height: 100%;
-        border: solid #00ff00;
-        background: #000000;
+        border: solid #00bb00;
+        background: #001100;
     }
 
     #game-container {
@@ -280,37 +280,37 @@ class BatMudTUI(App):
     .title {
         width: 100%;
         height: 3;
-        background: #001100;
+        background: #002200;
         color: #00ff00;
         content-align: center middle;
-        border-bottom: solid #00ff00;
+        border-bottom: solid #00bb00;
     }
 
     .paused {
-        color: #ff0000;
+        color: #ff3300;  /* Warmer red for better contrast */
         text-style: bold;
     }
 
     GameOutput, AIDecisions, LogOutput {
         width: 100%;
         height: auto;
-        background: #000000;
-        color: #00ff00;
+        background: #001100;
+        color: #00dd00;  /* Slightly softer green for main text */
         padding: 1;
         border: none;
-        scrollbar-background: #001100;
-        scrollbar-color: #00ff00;
+        scrollbar-background: #002200;
+        scrollbar-color: #00bb00;
         scrollbar-size: 1 1;
         margin: 0;
     }
 
     GameOutput:focus, LogOutput:focus {
         border: none;
-        background: #000000;
+        background: #001100;
     }
 
     ModalScreen {
-        background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 17, 0, 0.8);
     }
     """
 
