@@ -3,6 +3,7 @@ from textual.containers import ScrollableContainer, Horizontal
 from textual.widgets import Header, Footer, Static
 from textual.reactive import reactive
 from textual.message import Message
+from textual.screen import ModalScreen
 from rich.text import Text
 import re
 from datetime import datetime
@@ -72,6 +73,35 @@ class AIUpdate(Message):
     def __init__(self, content: str) -> None:
         self.content = content
         super().__init__()
+
+
+class PauseModal(ModalScreen):
+    """A modal dialog that appears when the game is paused"""
+
+    DEFAULT_CSS = """
+    PauseModal {
+        align: center middle;
+    }
+
+    .modal-container {
+        width: 30;
+        height: 7;
+        border: solid #00ff00;
+        background: rgba(0, 17, 0, 0.8);
+        color: #00ff00;
+        padding: 1;
+        content-align: center middle;
+        text-align: center;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with ScrollableContainer(classes="modal-container"):
+            yield Static("PAUSED\n\nPress 'p' to resume")
+
+    def on_key(self, event) -> None:
+        if event.key == "p":
+            self.app.pop_screen()
 
 
 class BatMudTUI(App):
@@ -147,16 +177,24 @@ class BatMudTUI(App):
         border: none;
         background: #000000;
     }
+
+    ModalScreen {
+        background: rgba(0, 0, 0, 0.5);
+    }
     """
 
     TITLE = "BatMUD AI Client"
-    BINDINGS = [("q", "quit", "Quit")]
+    BINDINGS = [
+        ("q", "quit", "Quit"),
+        ("p", "pause", "Pause/Resume")
+    ]
 
     def __init__(self):
         super().__init__()
         self.game_output = GameOutput()
         self.ai_decisions = AIDecisions()
         self.is_exiting = False
+        self.is_paused = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -189,3 +227,9 @@ class BatMudTUI(App):
         if event.key == "q":
             self.is_exiting = True
             self.exit()  # Use exit() instead of shutdown()
+
+    async def action_pause(self) -> None:
+        """Toggle pause state"""
+        self.is_paused = not self.is_paused
+        if self.is_paused:
+            await self.push_screen(PauseModal())

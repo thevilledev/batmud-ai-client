@@ -208,6 +208,11 @@ Respond with only the command to execute, no explanation."""
 
         try:
             while not self.tui.is_exiting:
+                # Skip processing if paused
+                if self.tui.is_paused:
+                    await asyncio.sleep(0.1)
+                    continue
+
                 # Read game output with a shorter timeout
                 output = await self.read_game_output(timeout=0.1)
                 if output is None:  # Connection closed
