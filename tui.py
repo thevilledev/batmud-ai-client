@@ -484,13 +484,13 @@ class BatMudTUI(App):
         """Toggle pause state"""
         self.is_paused = not self.is_paused
         self.update_header()
-        # Emit a special message to reset game state tracking when unpausing
-        if not self.is_paused:
+        # Add messages to game decisions panel
+        if self.is_paused:
+            await self.message_queue.put(AIUpdate("Game PAUSED - Manual control enabled. Type commands and press Enter to send."))
+        else:
             await self.message_queue.put(AIUpdate("Resuming AI control - analyzing game state..."))
             await self.message_queue.put(ResumeAI())
-        tui_logger.info(
-            "Game %s",
-            "PAUSED - Manual control enabled" if self.is_paused else "RESUMED - AI control enabled")
+        tui_logger.info("Game %s", "PAUSED - Manual control enabled" if self.is_paused else "RESUMED - AI control enabled")
 
     async def action_toggle_logs(self) -> None:
         """Toggle log view"""
