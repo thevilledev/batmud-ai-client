@@ -27,8 +27,8 @@ pip install -r requirements.txt
 
 ```bash
 export ANTHROPIC_API_KEY=<your-anthropic-api-key>
-export BATMUD_NAME_PREFIX=<your-name-prefix>
-export BATMUD_PASSWORD=<your-password>
+export BATMUD_NAME_PREFIX=<your-name-prefix>  # Default: "claude"
+export BATMUD_PASSWORD=<your-password>        # Default: "simakuutio"
 ```
 
 ## Running the client
@@ -43,15 +43,30 @@ The client will automatically:
 - Explore the world
 - Engage in combat
 
-Press `Ctrl+C` to exit.
+## Controls
+
+- `q` - Quit the application
+- `p` - Pause/Resume AI actions (game output still updates)
+- `l` - Toggle debug logs view
+
+## Features
+
+- Terminal User Interface (TUI) with split views for game output and AI decisions
+- Debug logs view accessible with 'l' key
+- Pause functionality to temporarily stop AI actions
+- Automatic character creation
+- Intelligent combat handling
+- All stdout/stderr is captured to logs view
+
+## Debugging
+
+- Debug logs are saved to 'batmud.log'
+- Press 'l' to view logs in the application
+- Pause the game with 'p' to inspect state without AI interference
 
 ## API limitations
 
-Claude 3.5 Opus has a token limit of 1M tokens per day. You may tune the `game_state_length` in `main.py` to reduce the amount of context saved.
-
-Token caching might be useful to reduce the number of tokens sent to Claude.
-
-When playing, always monitor the token usage in the console.
+Claude 3 Opus has a token limit of 1M tokens per day. You may tune the `game_state_length` in `main.py` to reduce the amount of context saved (default: 500 characters).
 
 ## Credits
 
