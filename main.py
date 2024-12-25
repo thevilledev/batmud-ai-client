@@ -9,17 +9,49 @@ from tui import BatMudTUI, GameUpdate, AIUpdate
 from functools import partial
 from textual.message import Message
 import logging
+import argparse
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        # Only keep file handler, remove StreamHandler
-        logging.FileHandler('batmud.log')
-    ]
-)
+# Create logger but don't configure it yet
 logger = logging.getLogger('BatMudClient')
+
+
+def setup_logging(log_file: Optional[str] = None, log_level: str = "INFO"):
+    """Configure logging based on command line arguments"""
+    # Convert string level to logging constant
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
+
+    handlers = []
+    if log_file:
+        handlers.append(logging.FileHandler(log_file))
+
+    # Configure logging
+    logging.basicConfig(
+        level=numeric_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+    # Set level for our logger specifically
+    logger.setLevel(numeric_level)
+
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(description='BatMUD AI Client')
+    parser.add_argument(
+        '--log-file',
+        help='Path to log file. If not specified, file logging is disabled.')
+    parser.add_argument(
+        '--log-level',
+        choices=[
+            'DEBUG',
+            'INFO',
+            'WARNING',
+            'ERROR',
+            'CRITICAL'],
+        default='INFO',
+        help='Set the logging level (default: INFO)')
+    return parser.parse_args()
 
 
 class BatMudClient:
@@ -322,6 +354,12 @@ Respond with only the command to execute, no explanation."""
 
 
 async def main():
+    # Parse command line arguments
+    args = parse_args()
+
+    # Setup logging based on arguments
+    setup_logging(args.log_file, args.log_level)
+
     client = BatMudClient()
 
     try:

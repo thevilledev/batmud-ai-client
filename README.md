@@ -1,8 +1,24 @@
 # BatMUD AI Client
 
-An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonomously.
+An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonomously. Features a retro-style terminal interface.
 
 <img src="images/bat.png" width="65%" height="65%">
+
+## Features
+
+- Terminal User Interface (TUI) with split views:
+  - Game output (left panel)
+  - AI decisions with timestamps (right panel)
+  - Debug logs view (toggle with 'l')
+- Autonomous gameplay:
+  - Automatic character creation
+  - Intelligent combat handling
+  - Environment exploration
+- Debugging tools:
+  - Real-time log viewing
+  - Pause functionality to inspect state
+  - Optional file logging
+  - Configurable log levels
 
 ## Prerequisites
 
@@ -11,14 +27,19 @@ An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonom
 
 ## Setup
 
-1. Clone the repository
-
+1. Clone the repository:
 ```bash
 git clone https://github.com/thevilledev/batmud-ai-client.git
+cd batmud-ai-client
 ```
 
-2. Install dependencies (`venv` recommended):
+2. Create and activate a virtual environment (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
@@ -26,43 +47,61 @@ pip install -r requirements.txt
 3. Set environment variables:
 
 ```bash
+# Required
 export ANTHROPIC_API_KEY=<your-anthropic-api-key>
 export BATMUD_NAME_PREFIX=<your-name-prefix>  # Default: "claude"
 export BATMUD_PASSWORD=<your-password>        # Default: "simakuutio"
 ```
 
-## Running the client
+## Usage
 
+Basic start:
 ```bash
 python main.py
 ```
 
-The client will automatically:
-- Connect to BatMUD
-- Create a character if needed
-- Explore the world
-- Engage in combat
+With debugging options:
+```bash
+python main.py --log-file logs/batmud.log --log-level DEBUG
+```
 
-## Controls
+### Command Line Options
 
-- `q` - Quit the application
-- `p` - Pause/Resume AI actions (game output still updates)
-- `l` - Toggle debug logs view
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--log-file <path>` | Enable file logging to specified path | Disabled |
+| `--log-level <level>` | Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | INFO |
 
-## Features
+### Controls
 
-- Terminal User Interface (TUI) with split views for game output and AI decisions
-- Debug logs view accessible with 'l' key
-- Pause functionality to temporarily stop AI actions
-- Automatic character creation
-- Intelligent combat handling
-- All stdout/stderr is captured to logs view
+| Key | Action | Description |
+|-----|--------|-------------|
+| `q` | Quit | Exit the application |
+| `p` | Pause/Resume | Toggle AI actions (game output still updates) |
+| `l` | Logs | Toggle debug logs view |
 
 ## Debugging
 
-- Debug logs are saved to 'batmud.log'
-- Press 'l' to view logs in the application
-- Pause the game with 'p' to inspect state without AI interference
+1. **Real-time Logs**
+   - Press 'l' to view logs in the application
+   - Shows stdout/stderr and internal events
+   - Timestamps for all entries
+
+2. **File Logging**
+   - Enable with `--log-file` flag
+   - Set verbosity with `--log-level`
+   - Useful for post-mortem analysis
+
+3. **Pause Mode**
+   - Press 'p' to pause AI actions
+   - Game state updates continue
+   - Useful for inspecting behavior
+
+## Performance Tuning
+
+- Adjust `game_state_length` (default: 500 characters) in `main.py` to control context size
+- Lower values reduce token usage but may impact AI decision quality
+- Monitor token usage through logs when debugging
 
 ## API limitations
 
