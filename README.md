@@ -11,7 +11,7 @@ An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonom
   - AI decisions with timestamps (right panel)
   - Debug logs view (toggle with 'l')
 - Autonomous gameplay:
-  - Automatic character creation
+  - Character creation and login support
   - Intelligent combat handling
   - Environment exploration
 - Debugging tools:
@@ -49,15 +49,26 @@ pip install -r requirements.txt
 ```bash
 # Required
 export ANTHROPIC_API_KEY=<your-anthropic-api-key>
+
+# For character creation mode (default)
 export BATMUD_NAME_PREFIX=<your-name-prefix>  # Default: "claude"
 export BATMUD_PASSWORD=<your-password>        # Default: "simakuutio"
+
+# For login mode
+export BATMUD_CHARACTER=<your-character-name>  # Required for login mode
+export BATMUD_PASSWORD=<your-password>         # Password for your character
 ```
 
 ## Usage
 
-Basic start:
+Basic start with character creation (default):
 ```bash
 python main.py
+```
+
+Login with existing character:
+```bash
+python main.py --mode login
 ```
 
 With debugging options:
@@ -69,6 +80,7 @@ python main.py --log-file logs/batmud.log --log-level DEBUG
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--mode <mode>` | Mode to run in (`create` or `login`) | `create` |
 | `--log-file <path>` | Enable file logging to specified path | Disabled |
 | `--log-level <level>` | Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | INFO |
 
