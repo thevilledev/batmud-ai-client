@@ -5,7 +5,7 @@ import sys
 from typing import Optional
 import asyncio
 import re
-from tui import BatMudTUI, GameUpdate, AIUpdate
+from tui import BatMudTUI, GameUpdate, AIUpdate, ManualCommand, ResumeAI
 from functools import partial
 from textual.message import Message
 import logging
@@ -66,8 +66,9 @@ class BatMudClient:
         self.name_prefix = os.getenv("BATMUD_NAME_PREFIX", "claude")
         self.password = os.getenv("BATMUD_PASSWORD", "simakuutio")
         self.game_state_length = 500
-        self.tui = BatMudTUI()
         self.message_queue = asyncio.Queue()
+        self.tui = BatMudTUI()
+        self.tui.message_queue = self.message_queue  # Set the message queue for TUI
         self.system_message = self._get_system_message()
         self.last_game_state = ""
         self.read_lock = asyncio.Lock()  # Lock for synchronizing game state access
@@ -287,6 +288,25 @@ Respond with only the command to execute, no explanation."""
                 elif isinstance(message, AIUpdate):
                     logger.debug(f"AI update content: {message.content!r}")
                     await self.tui.handle_ai_update(message)
+                elif isinstance(message, ManualCommand):
+                    logger.info(
+                        f"Processing manual command: {
+                            message.command}")
+                    try:
+                        reader, writer = self.telnet
+                        logger.debug("Writing command to telnet")
+                        writer.write(f"{message.command}\n")
+                        await writer.drain()
+                        logger.debug("Command sent successfully")
+                    except Exception as e:
+                        logger.error(f"Failed to send manual command: {e}")
+                elif isinstance(message, ResumeAI):
+                    logger.info("Resetting game state tracking for AI resume")
+                    self.last_game_state = ""  # Reset to force AI to analyze current state
+                    # Trigger immediate AI response
+                    command = await self.get_claude_response()
+                    if command:
+                        await self.send_command(command)
                 else:
                     logger.warning(f"Unknown message type: {type(message)}")
 
@@ -316,10 +336,6 @@ Respond with only the command to execute, no explanation."""
                 await self.send_command(initial_command)
 
             while not self.tui.is_exiting:
-                if self.tui.is_paused:
-                    await asyncio.sleep(0.1)
-                    continue
-
                 try:
                     # Use wait_for to implement efficient blocking read
                     output = await asyncio.wait_for(
@@ -331,11 +347,14 @@ Respond with only the command to execute, no explanation."""
                         logger.error("Connection closed")
                         break
 
-                    if output and not self.tui.is_paused:  # Only process AI responses when not paused
+                    # Always process game output regardless of pause state
+                    if output:
                         logger.debug(f"Got game output, length: {len(output)}")
-                        command = await self.get_claude_response()
-                        if command:
-                            await self.send_command(command)
+                        # Only get AI response if not paused
+                        if not self.tui.is_paused:
+                            command = await self.get_claude_response()
+                            if command:
+                                await self.send_command(command)
 
                 except asyncio.TimeoutError:
                     continue  # Normal timeout, continue loop

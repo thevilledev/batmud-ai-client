@@ -1,6 +1,6 @@
 from textual.app import App, ComposeResult
-from textual.containers import ScrollableContainer, Horizontal
-from textual.widgets import Header, Footer, Static
+from textual.containers import ScrollableContainer, Horizontal, Vertical
+from textual.widgets import Header, Footer, Static, Input
 from textual.reactive import reactive
 from textual.message import Message
 from textual.screen import ModalScreen, Screen
@@ -225,6 +225,21 @@ class LogView(Screen):
         self.app.pop_screen()
 
 
+class ManualCommand(Message):
+    """Message for manual commands"""
+
+    def __init__(self, command: str) -> None:
+        self.command = command
+        super().__init__()
+
+    async def handle(self, client) -> None:
+        """Handle the manual command"""
+        try:
+            await client.send_command(self.command)
+        except Exception as e:
+            tui_logger.error(f"Error sending manual command: {e}")
+
+
 class BatMudTUI(App):
     CSS = """
     Screen {
@@ -312,13 +327,46 @@ class BatMudTUI(App):
     ModalScreen {
         background: rgba(0, 17, 0, 0.8);
     }
+
+    #command-input {
+        dock: bottom;
+        background: #001100;
+        height: 3;
+        margin: 0 1;
+        border: solid #00bb00;
+        display: none;
+    }
+
+    #command-input.visible {
+        display: block;
+    }
+
+    Input {
+        background: #001100;
+        color: #00ff00;
+        border: none;
+        height: 3;
+        width: 100%;
+        padding: 0 1;
+    }
+
+    Input:focus {
+        border: none;
+    }
+
+    .input-placeholder {
+        color: #006600;
+    }
     """
 
     TITLE = "BatMUD AI Client"
     BINDINGS = [
         ("q", "quit", "Quit"),
         ("p", "pause", "Pause/Resume"),
-        ("l", "toggle_logs", "Show Logs")
+        ("l", "toggle_logs", "Show Logs"),
+        ("escape", "clear_input", "Clear input"),
+        ("ctrl+c", "copy", "Copy"),
+        ("ctrl+v", "paste", "Paste")
     ]
 
     def __init__(self):
@@ -329,6 +377,8 @@ class BatMudTUI(App):
         self.is_exiting = False
         self.is_paused = False
         self.header = None
+        self.command_input = None
+        self.message_queue = None  # Will be set by the client
 
         # Set up logging
         self.setup_logging()
@@ -357,24 +407,33 @@ class BatMudTUI(App):
     def compose(self) -> ComposeResult:
         self.header = Header(show_clock=True)
         yield self.header
-        with Horizontal():
-            with ScrollableContainer(id="game-container", classes="panel"):
-                yield Static("Game Output", classes="title", markup=False)
-                yield self.game_output
-            with ScrollableContainer(id="ai-container", classes="panel"):
-                yield Static("AI Decisions", classes="title", markup=False)
-                yield self.ai_decisions
+        with Vertical():
+            with Horizontal():
+                with ScrollableContainer(id="game-container", classes="panel"):
+                    yield Static("Game Output", classes="title", markup=False)
+                    yield self.game_output
+                with ScrollableContainer(id="ai-container", classes="panel"):
+                    yield Static("Game Decisions", classes="title", markup=False)
+                    yield self.ai_decisions
+            self.command_input = Input(
+                placeholder="Enter command (press Enter to send)",
+                id="command-input")
+            yield self.command_input
         yield Footer()
 
     def update_header(self):
         """Update header text based on pause state"""
         if self.is_paused:
             self.header.sub_title = Text(
-                "PAUSED - Press 'p' to resume", style="bold red")
+                "PAUSED - Manual control enabled", style="bold red")
             self.title = "BatMUD AI Client [PAUSED]"
+            self.command_input.add_class("visible")
+            self.command_input.focus()
         else:
             self.header.sub_title = Text("Connected to BatMUD", style="green")
             self.title = "BatMUD AI Client"
+            self.command_input.remove_class("visible")
+            self.command_input.value = ""
 
     async def handle_game_update(self, message: GameUpdate) -> None:
         self.game_output.update_content(message.content)
@@ -385,6 +444,24 @@ class BatMudTUI(App):
     def on_mount(self) -> None:
         """Handle mount event"""
         self.update_header()
+
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle manual command input"""
+        if self.is_paused and event.value.strip():
+            command = event.value.strip()
+            tui_logger.debug(f"Input submitted: {command}")
+            # Log the command to AI decisions panel
+            await self.handle_ai_update(AIUpdate(f"Manual command: {command}"))
+            # Send command directly to the message queue
+            await self.message_queue.put(ManualCommand(command))
+            # Clear the input
+            event.input.value = ""
+            tui_logger.debug("Input cleared")
+
+    async def action_clear_input(self) -> None:
+        """Clear the input field"""
+        if self.is_paused:
+            self.command_input.value = ""
 
     async def action_quit(self) -> None:
         """Quit the application"""
@@ -407,7 +484,13 @@ class BatMudTUI(App):
         """Toggle pause state"""
         self.is_paused = not self.is_paused
         self.update_header()
-        tui_logger.info("Game %s", "PAUSED" if self.is_paused else "RESUMED")
+        # Emit a special message to reset game state tracking when unpausing
+        if not self.is_paused:
+            await self.message_queue.put(AIUpdate("Resuming AI control - analyzing game state..."))
+            await self.message_queue.put(ResumeAI())
+        tui_logger.info(
+            "Game %s",
+            "PAUSED - Manual control enabled" if self.is_paused else "RESUMED - AI control enabled")
 
     async def action_toggle_logs(self) -> None:
         """Toggle log view"""
@@ -428,3 +511,8 @@ class LoggerWriter:
 
     def flush(self):
         pass
+
+
+class ResumeAI(Message):
+    """Special message to signal AI should resume from current state"""
+    pass
