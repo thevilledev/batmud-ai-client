@@ -70,7 +70,9 @@ class BatMudClient:
         self.last_response = ""
         self.name_prefix = os.getenv("BATMUD_NAME_PREFIX", "claude")
         self.password = os.getenv("BATMUD_PASSWORD", "simakuutio")
-        self.character_name = os.getenv("BATMUD_CHARACTER", "")  # New: character name for login
+        self.character_name = os.getenv(
+            "BATMUD_CHARACTER",
+            "")  # New: character name for login
         self.game_state_length = 500
         self.message_queue = asyncio.Queue()
         self.tui = BatMudTUI()

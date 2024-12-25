@@ -490,7 +490,9 @@ class BatMudTUI(App):
         else:
             await self.message_queue.put(AIUpdate("Resuming AI control - analyzing game state..."))
             await self.message_queue.put(ResumeAI())
-        tui_logger.info("Game %s", "PAUSED - Manual control enabled" if self.is_paused else "RESUMED - AI control enabled")
+        tui_logger.info(
+            "Game %s",
+            "PAUSED - Manual control enabled" if self.is_paused else "RESUMED - AI control enabled")
 
     async def action_toggle_logs(self) -> None:
         """Toggle log view"""
