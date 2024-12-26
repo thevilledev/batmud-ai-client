@@ -273,8 +273,6 @@ class UsageStats(Static):
         """Update the display with current statistics"""
         avg_tokens = self.total_tokens // max(1, self.num_requests)
         content = [
-            "Usage Statistics",
-            "─" * 20,
             f"AI Requests: {self.num_requests:,}",
             f"Total Tokens: {self.total_tokens:,}",
             f"Avg Tokens/Request: {avg_tokens:,}"
@@ -295,15 +293,15 @@ class UsageStats(Static):
 class BatMudTUI(App):
     CSS = """
     Screen {
-        background: #001100;  /* Very dark green background */
+        background: #001100;
         layers: base overlay;
     }
 
     Header {
         dock: top;
-        background: #002200;  /* Slightly lighter background for header */
+        background: #002200;
         color: #00ff00;
-        border-bottom: solid #00bb00;  /* Softer green for borders */
+        border-bottom: solid #00bb00;
         height: 3;
     }
 
@@ -321,42 +319,68 @@ class BatMudTUI(App):
         background: #001100;
     }
 
-    .panel {
+    Vertical {
         height: 100%;
-        border: solid #00bb00;
+        width: 100%;
         background: #001100;
     }
 
+    .panel {
+        border: solid #00bb00;
+        background: #001100;
+        padding: 0;
+    }
+
     #game-container {
-        width: 60%;
+        width: 70%;
         margin-right: 1;
+        height: 100%;
         overflow-y: scroll;
+    }
+
+    #right-panel {
+        width: 30%;
+        margin-left: 1;
+        padding: 0;
     }
 
     #ai-container {
-        width: 25%;
-        margin-left: 1;
-        margin-right: 1;
+        height: 68%;
+        margin-bottom: 0;
         overflow-y: scroll;
+        padding: 0;
     }
 
     #stats-container {
-        width: 15%;
-        margin-left: 1;
+        height: 32%;
         overflow-y: scroll;
+        padding: 0;
     }
 
     .title {
         width: 100%;
-        height: 3;
+        height: 2;
         background: #002200;
         color: #00ff00;
         content-align: center middle;
         border-bottom: solid #00bb00;
+        padding: 0;
+        margin: 0;
+    }
+
+    .stats-title {
+        width: 100%;
+        height: 1;
+        background: #002200;
+        color: #00ff00;
+        content-align: center middle;
+        border-bottom: solid #00bb00;
+        padding: 0;
+        margin: 0;
     }
 
     .paused {
-        color: #ff3300;  /* Warmer red for better contrast */
+        color: #ff3300;
         text-style: bold;
     }
 
@@ -364,8 +388,8 @@ class BatMudTUI(App):
         width: 100%;
         height: auto;
         background: #001100;
-        color: #00dd00;  /* Slightly softer green for main text */
-        padding: 1;
+        color: #00dd00;
+        padding: 0 1;
         border: none;
         scrollbar-background: #002200;
         scrollbar-color: #00bb00;
@@ -467,12 +491,13 @@ class BatMudTUI(App):
                 with ScrollableContainer(id="game-container", classes="panel"):
                     yield Static("Game Output", classes="title", markup=False)
                     yield self.game_output
-                with ScrollableContainer(id="ai-container", classes="panel"):
-                    yield Static("Game Decisions", classes="title", markup=False)
-                    yield self.ai_decisions
-                with ScrollableContainer(id="stats-container", classes="panel"):
-                    yield Static("Statistics", classes="title", markup=False)
-                    yield self.usage_stats
+                with Vertical(id="right-panel"):
+                    with ScrollableContainer(id="ai-container", classes="panel"):
+                        yield Static("Game Decisions", classes="title", markup=False)
+                        yield self.ai_decisions
+                    with ScrollableContainer(id="stats-container", classes="panel"):
+                        yield Static("Statistics", classes="stats-title", markup=False)
+                        yield self.usage_stats
             self.command_input = Input(
                 placeholder="Enter command (press Enter to send)",
                 id="command-input")
@@ -497,7 +522,17 @@ class BatMudTUI(App):
         self.game_output.update_content(message.content)
 
     async def handle_ai_update(self, message: AIUpdate) -> None:
-        self.ai_decisions.add_decision(message.content)
+        # For manual commands, keep the "Manual command: " prefix
+        if message.content.startswith("Manual command:"):
+            self.ai_decisions.add_decision(message.content)
+        # For AI decisions, strip out the duplicate "Command: " part
+        elif message.content.startswith("Command:"):
+            # Extract just the command part and format as AI Decision
+            command = message.content.replace("Command:", "").strip()
+            self.ai_decisions.add_decision(f"AI Decision: {command}")
+        # For other messages (like pause/resume notifications), show as is
+        else:
+            self.ai_decisions.add_decision(message.content)
 
     def on_mount(self) -> None:
         """Handle mount event"""
