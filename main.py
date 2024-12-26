@@ -447,7 +447,7 @@ IMPORTANT RULES:
             reader, writer = self.telnet
             writer.write(f"{command}\n")
             await writer.drain()
-            await self.message_queue.put(AIUpdate(f"Command: {command}"))
+            # Don't send an AIUpdate here since it's already sent in get_claude_response
             # Wait for command to be processed
             await asyncio.sleep(0.5)
         except Exception as e:
@@ -494,7 +494,8 @@ Respond with only the command to execute, no explanation."""
             try:
                 response = await asyncio.to_thread(
                     lambda: self.claude.messages.create(
-                        model="claude-3-opus-20240229",
+                        #model="claude-3-opus-20240229",
+                        model="claude-3-5-haiku-20241022",
                         max_tokens=50,
                         temperature=0.5,
                         system=[{"type": "text", "text": self.system_message}],
@@ -530,6 +531,7 @@ Respond with only the command to execute, no explanation."""
                     self.tui.usage_stats.record_usage(
                         total_tokens, input_tokens, output_tokens)
 
+                # Send single AI decision message
                 await self.message_queue.put(AIUpdate(f"AI Decision: {command}"))
                 return command
 
