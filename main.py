@@ -10,6 +10,7 @@ from functools import partial
 from textual.message import Message
 import logging
 import argparse
+import time
 
 # Create logger but don't configure it yet
 logger = logging.getLogger('BatMudClient')
@@ -59,6 +60,109 @@ def parse_args():
     return parser.parse_args()
 
 
+class GameState:
+    """Class to track and manage game state"""
+
+    def __init__(self):
+        self.hp = 0
+        self.max_hp = 0
+        self.location = ""
+        self.gold = 0
+        self.last_command = ""
+        self.last_movement = ""
+        self.movement_count = 0  # Track repeated movements
+        self.last_room = ""
+        self.room_repeat_count = 0  # Track repeated room descriptions
+        self.last_update_time = 0  # For throttling
+        self.exits = set()  # Available exits
+        self.status_effects = set()  # Current status effects
+        self.in_combat = False
+
+    def update_from_text(self, text: str) -> dict:
+        """Update state from game text and return what changed"""
+        changes = {}
+
+        # Extract HP if present
+        hp_match = re.search(r"HP:\s*(\d+)/(\d+)", text)
+        if hp_match:
+            new_hp = int(hp_match.group(1))
+            new_max_hp = int(hp_match.group(2))
+            if new_hp != self.hp or new_max_hp != self.max_hp:
+                changes['hp'] = (new_hp, new_max_hp)
+                self.hp = new_hp
+                self.max_hp = new_max_hp
+
+        # Extract location/room
+        room_match = re.search(r"You are in (.*?)(?=\.|$)", text)
+        if room_match:
+            new_room = room_match.group(1).strip()
+            if new_room != self.last_room:
+                changes['location'] = new_room
+                self.last_room = new_room
+                self.room_repeat_count = 1
+            else:
+                self.room_repeat_count += 1
+
+        # Extract exits
+        exit_match = re.search(
+            r"(?:Obvious exits|You see exits):\s*(.*?)(?=\n|$)", text)
+        if exit_match:
+            new_exits = set(
+                re.findall(
+                    r'\b(?:north|south|east|west|up|down|ne|nw|se|sw)\b',
+                    exit_match.group(1).lower()))
+            if new_exits != self.exits:
+                changes['exits'] = new_exits
+                self.exits = new_exits
+
+        # Track movement
+        movement_match = re.search(
+            r"You (?:go|move|walk|run|swim|climb|fly) (\w+)", text)
+        if movement_match:
+            new_movement = movement_match.group(1).lower()
+            if new_movement == self.last_movement:
+                self.movement_count += 1
+            else:
+                self.movement_count = 1
+                self.last_movement = new_movement
+            changes['movement'] = new_movement
+
+        # Track combat state
+        if re.search(
+            r"You are attacked by|Your opponent|You deal \d+ damage",
+                text):
+            self.in_combat = True
+            changes['combat'] = True
+        elif re.search(r"Your opponent is dead|You feel more experienced", text):
+            self.in_combat = False
+            changes['combat'] = False
+
+        # Track status effects
+        for effect in ["poisoned", "hungry", "thirsty", "exhausted"]:
+            if f"You are {effect}" in text.lower():
+                self.status_effects.add(effect)
+                changes.setdefault('status_effects', set()).add(effect)
+
+        return changes
+
+    def get_context_summary(self) -> str:
+        """Return a brief summary of current game state"""
+        summary = []
+        if self.hp and self.max_hp:
+            summary.append(f"HP: {self.hp}/{self.max_hp}")
+        if self.location:
+            summary.append(f"Location: {self.location}")
+        if self.exits:
+            summary.append(f"Exits: {', '.join(sorted(self.exits))}")
+        if self.status_effects:
+            summary.append(f"Status: {', '.join(sorted(self.status_effects))}")
+        if self.in_combat:
+            summary.append("In Combat")
+        if self.last_command:
+            summary.append(f"Last command: {self.last_command}")
+        return " | ".join(summary)
+
+
 class BatMudClient:
     def __init__(self):
         self.host = "batmud.bat.org"
@@ -81,6 +185,10 @@ class BatMudClient:
         self.last_game_state = ""
         self.read_lock = asyncio.Lock()  # Lock for synchronizing game state access
         self.mode = 'create'  # Default to character creation
+        self.state = GameState()  # New game state tracker
+        self.last_ai_call = 0  # Timestamp of last AI call
+        self.ai_throttle_delay = 2.0  # Minimum seconds between AI calls
+        self.pending_updates = []  # Buffer for updates during throttle period
 
     def _get_system_message(self):
         """Return the static system message with game instructions"""
@@ -298,6 +406,30 @@ IMPORTANT RULES:
                         logger.debug(f"Raw telnet data received: {data!r}")
                         self.game_state += data
                         await self.message_queue.put(GameUpdate(data))
+
+                        # Update game state tracking
+                        changes = self.state.update_from_text(data)
+
+                        # Log significant changes
+                        if changes:
+                            logger.debug(f"State changes detected: {changes}")
+
+                            # If we're throttled, add to pending updates
+                            if time.time() - self.last_ai_call < self.ai_throttle_delay:
+                                self.pending_updates.append(changes)
+                                logger.debug(
+                                    f"Added to pending updates: {len(self.pending_updates)} updates queued")
+
+                            # Special cases for immediate response
+                            if (
+                                    'combat' in changes and changes['combat']) or (
+                                    'hp' in changes and changes['hp'][0] < self.state.hp *
+                                    0.5) or (
+                                    'status_effects' in changes):
+                                logger.debug(
+                                    "Critical state change - forcing immediate AI response")
+                                self.last_ai_call = 0  # Force immediate AI response
+
                         return data
                 except asyncio.TimeoutError:
                     return ""  # Timeout is normal, return empty string
@@ -324,7 +456,15 @@ IMPORTANT RULES:
 
     async def get_claude_response(self):
         """Get Claude's decision based on current game state"""
-        # Strip ANSI codes from game state before sending to Claude
+        current_time = time.time()
+
+        # Check if we need to throttle
+        if current_time - self.last_ai_call < self.ai_throttle_delay:
+            if self.pending_updates:
+                logger.debug("Throttling AI call - accumulating updates")
+                return None
+
+        # Clean game state by removing ANSI codes
         clean_state = re.sub(
             r'\x1b\[[0-9;]*[mGKH]', '', self.game_state[-self.game_state_length:])
 
@@ -332,8 +472,15 @@ IMPORTANT RULES:
         if not self._should_get_new_response(clean_state):
             return None
 
-        user_message = f"""Current game state:
+        # Get state summary
+        state_summary = self.state.get_context_summary()
+
+        # Construct the prompt with immediate context and summary
+        user_message = f"""Current game output:
 {clean_state}
+
+Game State Summary:
+{state_summary}
 
 Previous action taken:
 {self.last_response}
@@ -341,7 +488,7 @@ Previous action taken:
 Respond with only the command to execute, no explanation."""
 
         max_retries = 3
-        retry_delay = 1  # seconds
+        retry_delay = 1
 
         for attempt in range(max_retries):
             try:
@@ -350,20 +497,11 @@ Respond with only the command to execute, no explanation."""
                         model="claude-3-opus-20240229",
                         max_tokens=50,
                         temperature=0.5,
-                        system=[
-                            {
-                                "type": "text",
-                                "text": self.system_message
-                            }
-                        ],
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": user_message
-                            }
-                        ]
+                        system=[{"type": "text", "text": self.system_message}],
+                        messages=[{"role": "user", "content": user_message}]
                     )
                 )
+
                 if not response.content:
                     await self.message_queue.put(AIUpdate(f"Empty response from Claude (attempt {attempt + 1}/{max_retries})"))
                     if attempt < max_retries - 1:
@@ -372,10 +510,29 @@ Respond with only the command to execute, no explanation."""
                     return None
 
                 command = response.content[0].text.strip()
+
+                # Update state tracking
                 self.last_response = command
                 self.last_game_state = clean_state
+                self.state.last_command = command
+                self.last_ai_call = current_time
+                self.pending_updates.clear()
+
+                # Update usage statistics
+                if hasattr(response, 'usage'):
+                    # Get both input and output tokens from the API response
+                    input_tokens = response.usage.input_tokens
+                    output_tokens = response.usage.output_tokens
+                    total_tokens = input_tokens + output_tokens
+                    logger.debug(
+                        f"Token usage - Input: {input_tokens}, Output: {output_tokens}, Total: {total_tokens}")
+                    # Update stats with detailed token breakdown
+                    self.tui.usage_stats.record_usage(
+                        total_tokens, input_tokens, output_tokens)
+
                 await self.message_queue.put(AIUpdate(f"AI Decision: {command}"))
                 return command
+
             except Exception as e:
                 await self.message_queue.put(AIUpdate(f"Error getting response (attempt {attempt + 1}/{max_retries}): {e}"))
                 if attempt < max_retries - 1:

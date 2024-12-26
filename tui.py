@@ -10,6 +10,7 @@ from datetime import datetime
 import sys
 import logging
 from logging import Handler
+from typing import Optional
 
 # Create logger for TUI
 tui_logger = logging.getLogger('TUI')
@@ -240,6 +241,57 @@ class ManualCommand(Message):
             tui_logger.error(f"Error sending manual command: {e}")
 
 
+class UsageStats(Static):
+    """Widget to display AI usage statistics"""
+
+    def __init__(self):
+        super().__init__("")
+        self.num_requests = 0
+        self.total_tokens = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.refresh_content()
+
+    def record_usage(
+            self,
+            total_tokens: int,
+            input_tokens: Optional[int] = None,
+            output_tokens: Optional[int] = None):
+        """Record a new AI request and its token usage"""
+        self.num_requests += 1
+        self.total_tokens += total_tokens
+
+        # Track input/output tokens if provided
+        if input_tokens is not None:
+            self.input_tokens += input_tokens
+        if output_tokens is not None:
+            self.output_tokens += output_tokens
+
+        self.refresh_content()
+
+    def refresh_content(self):
+        """Update the display with current statistics"""
+        avg_tokens = self.total_tokens // max(1, self.num_requests)
+        content = [
+            "Usage Statistics",
+            "─" * 20,
+            f"AI Requests: {self.num_requests:,}",
+            f"Total Tokens: {self.total_tokens:,}",
+            f"Avg Tokens/Request: {avg_tokens:,}"
+        ]
+
+        # Add input/output breakdown if we have that data
+        if self.input_tokens > 0 or self.output_tokens > 0:
+            content.extend([
+                "─" * 20,
+                f"Input Tokens: {self.input_tokens:,}",
+                f"Output Tokens: {self.output_tokens:,}",
+                f"I/O Ratio: {self.input_tokens / max(1, self.output_tokens):.1f}"
+            ])
+
+        self.update(Text("\n".join(content), style="bold #00ff00"))
+
+
 class BatMudTUI(App):
     CSS = """
     Screen {
@@ -276,19 +328,21 @@ class BatMudTUI(App):
     }
 
     #game-container {
-        width: 65%;
+        width: 60%;
         margin-right: 1;
         overflow-y: scroll;
     }
 
     #ai-container {
-        width: 35%;
+        width: 25%;
         margin-left: 1;
+        margin-right: 1;
         overflow-y: scroll;
     }
 
-    #log-container {
-        width: 100%;
+    #stats-container {
+        width: 15%;
+        margin-left: 1;
         overflow-y: scroll;
     }
 
@@ -306,7 +360,7 @@ class BatMudTUI(App):
         text-style: bold;
     }
 
-    GameOutput, AIDecisions, LogOutput {
+    GameOutput, AIDecisions, UsageStats {
         width: 100%;
         height: auto;
         background: #001100;
@@ -373,6 +427,7 @@ class BatMudTUI(App):
         super().__init__()
         self.game_output = GameOutput()
         self.ai_decisions = AIDecisions()
+        self.usage_stats = UsageStats()  # New usage stats widget
         self.log_view = LogView()
         self.is_exiting = False
         self.is_paused = False
@@ -415,6 +470,9 @@ class BatMudTUI(App):
                 with ScrollableContainer(id="ai-container", classes="panel"):
                     yield Static("Game Decisions", classes="title", markup=False)
                     yield self.ai_decisions
+                with ScrollableContainer(id="stats-container", classes="panel"):
+                    yield Static("Statistics", classes="title", markup=False)
+                    yield self.usage_stats
             self.command_input = Input(
                 placeholder="Enter command (press Enter to send)",
                 id="command-input")
