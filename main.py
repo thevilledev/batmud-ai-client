@@ -267,7 +267,8 @@ IMPORTANT RULES:
             r"You need a key"
         ]
 
-        # Navigation patterns that indicate room changes or important movement info
+        # Navigation patterns that indicate room changes or important movement
+        # info
         navigation_patterns = [
             r"You (go|move|walk|run|swim|climb|fly) \w+",  # Movement actions
             r"You arrive at",
@@ -276,8 +277,10 @@ IMPORTANT RULES:
             r"You peer \w+",  # Peer actions
             r"You see .* as you peer",  # Peer results
             r"You cannot peer",  # Peer failures
-            r"You are in (?!.*corridor\b)",  # Room descriptions but exclude generic corridors
-            r"You see (a|an|the) .* (north|south|east|west|up|down)",  # Directional landmarks
+            r"You are in (?!.*corridor\b)",
+            # Room descriptions but exclude generic corridors
+            # Directional landmarks
+            r"You see (a|an|the) .* (north|south|east|west|up|down)",
             r"The path (continues|leads|winds)",
             r"A (door|gate|portal) blocks your way",
             r"You need to rest",  # Movement limitations
@@ -505,7 +508,7 @@ Respond with only the command to execute, no explanation."""
             try:
                 response = await asyncio.to_thread(
                     lambda: self.claude.messages.create(
-                        #model="claude-3-opus-20240229",
+                        # model="claude-3-opus-20240229",
                         model="claude-3-5-haiku-20241022",
                         max_tokens=50,
                         temperature=0.5,

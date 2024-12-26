@@ -272,22 +272,27 @@ class UsageStats(Static):
     def refresh_content(self):
         """Update the display with current statistics"""
         avg_tokens = self.total_tokens // max(1, self.num_requests)
+
+        # Basic stats
         content = [
-            f"AI Requests: {self.num_requests:,}",
-            f"Total Tokens: {self.total_tokens:,}",
-            f"Avg Tokens/Request: {avg_tokens:,}"
+            "─" * 4 + "Total" + "─" * 4,
+            f"Requests: {self.num_requests:,}",
+            f"Total: {self.total_tokens:,}",
+            f"Avg: {avg_tokens:,}"
         ]
 
         # Add input/output breakdown if we have that data
         if self.input_tokens > 0 or self.output_tokens > 0:
             content.extend([
-                "─" * 20,
-                f"Input Tokens: {self.input_tokens:,}",
-                f"Output Tokens: {self.output_tokens:,}",
-                f"I/O Ratio: {self.input_tokens / max(1, self.output_tokens):.1f}"
+                "─" * 4 + "Tokens" + "─" * 4,
+                f"In: {self.input_tokens:,}",
+                f"Out: {self.output_tokens:,}",
+                f"Ratio: {self.input_tokens / max(1, self.output_tokens):.1f}"
             ])
 
-        self.update(Text("\n".join(content), style="bold #00ff00"))
+        # Join with newlines and update display
+        text = Text("\n".join(content), style="bold #00ff00")
+        self.update(text)
 
 
 class BatMudTUI(App):
@@ -353,8 +358,9 @@ class BatMudTUI(App):
 
     #stats-container {
         height: 32%;
-        overflow-y: scroll;
         padding: 0;
+        margin: 0;
+        min-height: 10;
     }
 
     .title {
@@ -370,7 +376,7 @@ class BatMudTUI(App):
 
     .stats-title {
         width: 100%;
-        height: 1;
+        height: 2;
         background: #002200;
         color: #00ff00;
         content-align: center middle;
@@ -384,7 +390,7 @@ class BatMudTUI(App):
         text-style: bold;
     }
 
-    GameOutput, AIDecisions, UsageStats {
+    GameOutput, AIDecisions {
         width: 100%;
         height: auto;
         background: #001100;
@@ -395,6 +401,17 @@ class BatMudTUI(App):
         scrollbar-color: #00bb00;
         scrollbar-size: 1 1;
         margin: 0;
+    }
+
+    UsageStats {
+        width: 100%;
+        height: auto;
+        background: #001100;
+        color: #00dd00;
+        padding: 1;
+        border: none;
+        margin: 0;
+        display: block;
     }
 
     GameOutput:focus, LogOutput:focus {
@@ -495,7 +512,7 @@ class BatMudTUI(App):
                     with ScrollableContainer(id="ai-container", classes="panel"):
                         yield Static("Game Decisions", classes="title", markup=False)
                         yield self.ai_decisions
-                    with ScrollableContainer(id="stats-container", classes="panel"):
+                    with Vertical(id="stats-container", classes="panel"):
                         yield Static("Statistics", classes="stats-title", markup=False)
                         yield self.usage_stats
             self.command_input = Input(
@@ -509,7 +526,7 @@ class BatMudTUI(App):
         if self.is_paused:
             self.header.sub_title = Text(
                 "PAUSED - Manual control enabled", style="bold red")
-            self.title = "BatMUD AI Client [PAUSED]"
+            self.title = "BatMUD AI Client [AI PAUSED]"
             self.command_input.add_class("visible")
             self.command_input.focus()
         else:
