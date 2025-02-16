@@ -1,6 +1,6 @@
 # BatMUD AI Client
 
-An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonomously. Features a retro-style terminal interface.
+An AI-powered client for BatMUD that uses your LLM of choice through OpenRouter API to play the game autonomously. Features a retro-style terminal interface.
 
 <img src="images/bat.png" width="65%" height="65%">
 
@@ -23,7 +23,7 @@ An AI-powered client for BatMUD that uses Claude 3 Opus to play the game autonom
 ## Prerequisites
 
 - Python 3.12+
-- Anthropic API key
+- OpenRouter API key
 
 ## Setup
 
@@ -48,7 +48,8 @@ pip install -r requirements.txt
 
 ```bash
 # Required
-export ANTHROPIC_API_KEY=<your-anthropic-api-key>
+export OPENROUTER_API_KEY=<your-openrouter-api-key>
+export OPENROUTER_MODEL=<model-name>         # Optional, defaults to anthropic/claude-3-opus-20240229
 
 # For character creation mode (default)
 export BATMUD_NAME_PREFIX=<your-name-prefix>  # Default: "claude"
@@ -76,6 +77,11 @@ With debugging options:
 python main.py --log-file logs/batmud.log --log-level DEBUG
 ```
 
+With specific model:
+```bash
+python main.py --model google/gemini-pro
+```
+
 ### Command Line Options
 
 | Option | Description | Default |
@@ -83,6 +89,7 @@ python main.py --log-file logs/batmud.log --log-level DEBUG
 | `--mode <mode>` | Mode to run in (`create` or `login`) | `create` |
 | `--log-file <path>` | Enable file logging to specified path | Disabled |
 | `--log-level <level>` | Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | INFO |
+| `--model <model>` | OpenRouter model to use (e.g. anthropic/claude-3-opus-20240229, google/gemini-pro) | anthropic/claude-3-opus-20240229 |
 
 ### Controls
 
@@ -117,7 +124,7 @@ python main.py --log-file logs/batmud.log --log-level DEBUG
 
 ## API limitations
 
-Claude 3 Opus has a token limit of 1M tokens per day. You may tune the `game_state_length` in `main.py` to reduce the amount of context saved (default: 500 characters).
+By default this client uses Claude through OpenRouter API (using OpenAI SDK for compatibility). The token limits and pricing depend on your OpenRouter subscription. You may tune the `game_state_length` in `main.py` to reduce the amount of context saved (default: 500 characters).
 
 ## Credits
 
