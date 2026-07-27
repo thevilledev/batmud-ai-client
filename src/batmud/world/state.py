@@ -110,8 +110,11 @@ class WorldState:
 
     _parser: RoomParser = field(default_factory=RoomParser)
     _pending_direction: str | None = None
-    _last_battle_at: float = 0.0
-    _last_event_at: float = 0.0
+    # None rather than 0.0: these are compared against ``clock()``, which is
+    # monotonic and therefore relative to an arbitrary origin. On a freshly
+    # booted machine a 0.0 sentinel reads as "a moment ago".
+    _last_battle_at: float | None = None
+    _last_event_at: float | None = None
 
     # --- derived ------------------------------------------------------------
 
@@ -119,6 +122,8 @@ class WorldState:
     def in_combat(self) -> bool:
         if self.target is not None:
             return True
+        if self._last_battle_at is None:
+            return False
         return self.clock() - self._last_battle_at < COMBAT_TIMEOUT
 
     @property
@@ -140,7 +145,9 @@ class WorldState:
 
     @property
     def idle_seconds(self) -> float:
-        return self.clock() - self._last_event_at if self._last_event_at else 0.0
+        if self._last_event_at is None:
+            return 0.0
+        return self.clock() - self._last_event_at
 
     # --- event application --------------------------------------------------
 

@@ -207,6 +207,15 @@ def test_battle_channel_keeps_combat_alive_without_a_target() -> None:
     assert not state.in_combat
 
 
+def test_fresh_state_is_not_in_combat_on_a_recently_booted_machine() -> None:
+    # time.monotonic() counts from an arbitrary origin, which on Linux is boot,
+    # so a CI runner a few seconds old reports a clock smaller than
+    # COMBAT_TIMEOUT. Combat must be driven by battle messages, not by uptime.
+    state = WorldState(clock=lambda: 14.0)
+    assert not state.in_combat
+    assert state.idle_seconds == 0.0
+
+
 def test_busy_while_casting() -> None:
     state = WorldState()
     state.apply(ActionProgress(ActionKind.SPELL, "magic_missile", 2))
