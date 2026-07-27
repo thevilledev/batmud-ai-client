@@ -110,18 +110,26 @@ class LLMPlanner:
         for _ in range(MAX_TOOL_ROUNDS):
             try:
                 self.limiter.record()
-                completion = await self.llm.complete(messages, schemas())
+                # A turn is only useful if it produces a tool call, so the model
+                # is required to make one rather than merely offered the option.
+                completion = await self.llm.complete(messages, schemas(), tool_choice="required")
             except LLMUnavailable as error:
                 self.last_error = str(error)
                 log.warning("planner unavailable: %s", error)
                 return None
 
             if not completion.tool_calls:
-                # No tool call means no action. Nudge once, then give up: prose
-                # must never be sent to the game as a command, and a model that
-                # ignores the tools twice will not start on the third attempt.
+                # Nudge once, then give up: prose must never be sent to the game
+                # as a command, and a model that ignores the tools twice will not
+                # start on the third attempt.
                 self.last_error = "model replied without calling a tool"
-                log.info("planner replied without a tool call: %r", completion.content[:120])
+                if completion.finish_reason and completion.finish_reason != "stop":
+                    self.last_error += f" (finish_reason={completion.finish_reason})"
+                log.info(
+                    "planner replied without a tool call (finish_reason=%s): %r",
+                    completion.finish_reason,
+                    completion.content[:120],
+                )
                 if nudged:
                     return None
                 nudged = True
@@ -144,6 +152,7 @@ class LLMPlanner:
 
             if outcome.command is not None:
                 self._remember_turn(completion, call, outcome)
+                self.last_error = ""
                 return Decision(
                     command=outcome.command,
                     source=Source.PLANNER,
@@ -152,6 +161,7 @@ class LLMPlanner:
 
             if outcome.ok and call.name == "wait":
                 self._remember_turn(completion, call, outcome)
+                self.last_error = ""
                 return None
 
         self.last_error = "no command after several tool calls"

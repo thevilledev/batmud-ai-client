@@ -216,6 +216,7 @@ class StubLLM(LLMClient):
         super().__init__(settings=settings, budget=Budget(), client=None)
         self.scripted = list(completions)
         self.requests: list[list[dict[str, Any]]] = []
+        self.tool_choices: list[str] = []
 
     @property
     def available(self) -> bool:
@@ -230,6 +231,7 @@ class StubLLM(LLMClient):
     ) -> Completion:
         # Copied because the planner keeps appending to the list it passed in.
         self.requests.append(list(messages))
+        self.tool_choices.append(tool_choice)
         return self.scripted.pop(0)
 
 
@@ -279,6 +281,40 @@ async def test_prose_without_a_tool_call_is_never_sent_to_the_game() -> None:
     )
     assert await planner.decide(state_in_room("north"), trigger="room") is None
     assert "without calling a tool" in planner.last_error
+
+
+async def test_the_model_is_required_to_call_a_tool() -> None:
+    # A turn that produces prose is a wasted turn, so 'auto' is not enough:
+    # the provider is told a tool call is mandatory.
+    planner, llm = make_planner([tool_completion("move", direction="north")])
+    await planner.decide(state_in_room("north"), trigger="room")
+    assert llm.tool_choices == ["required"]
+
+
+async def test_a_truncated_reply_says_so_instead_of_looking_like_prose() -> None:
+    planner, _ = make_planner(
+        [
+            Completion(content="I would go", finish_reason="length"),
+            Completion(content="north", finish_reason="length"),
+        ]
+    )
+    assert await planner.decide(state_in_room("north"), trigger="room") is None
+    assert "finish_reason=length" in planner.last_error
+
+
+async def test_a_working_turn_clears_the_previous_failure() -> None:
+    # The status panel reads last_error, so leaving a stale one there reports a
+    # healthy planner as broken for the rest of the session.
+    planner, _ = make_planner(
+        [Completion(content="thinking"), Completion(content="still thinking")]
+    )
+    state = state_in_room("north")
+    assert await planner.decide(state, trigger="room") is None
+    assert planner.last_error
+
+    planner.llm.scripted.append(tool_completion("move", direction="north"))  # type: ignore[attr-defined]
+    assert await planner.decide(state, trigger="room") is not None
+    assert planner.last_error == ""
 
 
 async def test_informational_tools_do_not_end_the_turn() -> None:

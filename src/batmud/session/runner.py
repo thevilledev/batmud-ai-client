@@ -144,6 +144,7 @@ class SessionRunner:
     _stopping: bool = False
     _feedback: str = ""
     _last_trigger: str = "start"
+    _announced_login: bool = False
 
     def __post_init__(self) -> None:
         safety = self.settings.safety
@@ -190,6 +191,7 @@ class SessionRunner:
         self.state.connected = True
         self.state.reset_room_parser()
         self.loops.clear()
+        self._announced_login = False
 
         await self.connection.connect()
         self.hooks.on_status(f"Connected to {settings.host}:{settings.port}")
@@ -268,10 +270,14 @@ class SessionRunner:
         )
 
     def _announce_login(self) -> None:
+        """Say we are in, once. Code 52 repeats on every experience change."""
+        if self._announced_login:
+            return
         if not self.state.logged_in:
             return
         if not self.state.batclient_active:
             return
+        self._announced_login = True
         self.hooks.on_status("Logged in, BatClient protocol active")
 
     async def _sender(self) -> None:

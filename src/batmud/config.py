@@ -55,7 +55,7 @@ class CharacterSettings(BaseModel):
 class LLMSettings(BaseModel):
     """Planner model and the budget it is allowed to spend."""
 
-    model: str = "openrouter/auto"
+    model: str = "openrouter/auto-beta"
     api_key: SecretStr = SecretStr("")
     base_url: str = "https://openrouter.ai/api/v1"
     temperature: float = 0.3

@@ -28,9 +28,10 @@ password = ""
 name_prefix = "bat"
 
 [llm]
-# Any OpenRouter slug. "openrouter/auto" lets OpenRouter pick; naming a
-# specific model gives you predictable behaviour and cost.
-model = "openrouter/auto"
+# Any OpenRouter slug. "openrouter/auto-beta" lets OpenRouter pick; naming a
+# specific model gives you predictable behaviour and cost. The planner answers
+# only in tool calls, so pick something that calls tools reliably.
+model = "openrouter/auto-beta"
 # Better set as OPENROUTER_API_KEY in the environment.
 api_key = ""
 base_url = "https://openrouter.ai/api/v1"

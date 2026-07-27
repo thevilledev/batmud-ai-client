@@ -4,15 +4,24 @@ from __future__ import annotations
 
 import asyncio
 import random
+from collections.abc import AsyncIterator
 
 import pytest
 from pydantic import SecretStr
 
+from batmud.agent.reflexes import ReflexEngine
 from batmud.agent.safety import Decision, Source
-from batmud.config import CharacterSettings
-from batmud.protocol.events import ConnectionFailed, ConnectionSucceeded, PlayerInfo
+from batmud.config import CharacterSettings, Settings
+from batmud.protocol.events import (
+    ConnectionFailed,
+    ConnectionSucceeded,
+    Event,
+    PlayerInfo,
+    Vitals,
+)
 from batmud.session.login import LoginController, LoginMode, LoginPhase, generate_name
-from batmud.session.runner import ApprovalGate
+from batmud.session.runner import ApprovalGate, SessionHooks, SessionRunner
+from batmud.world.state import WorldState
 
 MENU = "Please enter your choice or name:"
 
@@ -217,3 +226,60 @@ async def test_cancel_releases_a_waiting_proposal() -> None:
     await asyncio.sleep(0)
     gate.cancel()
     assert await task is None
+
+
+# --- the event pump ---------------------------------------------------------
+
+
+class ScriptedConnection:
+    """Replays a fixed list of events, then closes."""
+
+    def __init__(self, events: list[Event]) -> None:
+        self.scripted = events
+        self.sent: list[str] = []
+
+    async def connect(self) -> None:
+        return None
+
+    async def send(self, text: str) -> None:
+        self.sent.append(text)
+
+    async def close(self) -> None:
+        return None
+
+    async def events(self) -> AsyncIterator[Event]:
+        for event in self.scripted:
+            yield event
+
+
+def runner_for(events: list[Event]) -> tuple[SessionRunner, list[str]]:
+    settings = Settings.model_validate(
+        {"character": {"name": "Killer", "password": SecretStr("hunter2")}}
+    )
+    statuses: list[str] = []
+    runner = SessionRunner(
+        settings=settings,
+        state=WorldState(),
+        reflexes=ReflexEngine(settings),
+        hooks=SessionHooks(on_status=statuses.append),
+    )
+    runner.connection = ScriptedConnection(events)  # type: ignore[assignment]
+    return runner, statuses
+
+
+def player_info(experience: int) -> PlayerInfo:
+    return PlayerInfo(name="Killer", race="orc", level=1, experience=experience)
+
+
+async def test_login_is_announced_once_however_often_code_52_repeats() -> None:
+    # Code 52 arrives on every experience change, so announcing per event
+    # buries the game output under 'Logged in, BatClient protocol active'.
+    events: list[Event] = [ConnectionSucceeded()]
+    for experience in range(10):
+        events.append(Vitals(hp=100, max_hp=100))
+        events.append(player_info(experience))
+
+    runner, statuses = runner_for(events)
+    await runner._pump()
+
+    assert statuses.count("Logged in, BatClient protocol active") == 1
