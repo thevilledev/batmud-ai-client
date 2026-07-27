@@ -1,0 +1,99 @@
+# BatMUD AI client configuration.
+#
+# Copy to `batmud.toml` next to where you run the client, or to
+# `~/.config/batmud/config.toml`. Every value here is a default, so you can
+# delete anything you do not want to change.
+#
+# Precedence: defaults < this file < environment variables < command line.
+# Secrets are better kept in the environment than in this file.
+
+[connection]
+host = "batmud.bat.org"
+# 2022 is TLS, 2023 is plaintext.
+port = 2022
+tls = true
+verify_tls = true
+# Enables the BatClient control code protocol, which is where the client gets
+# exact health, position, target and cast state instead of guessing from text.
+batclient = true
+reconnect = true
+reconnect_delay = 3.0
+reconnect_max_delay = 120.0
+
+[character]
+# Also settable as BATMUD_CHARACTER and BATMUD_PASSWORD.
+name = ""
+password = ""
+# Used by `--mode create` to build a name: this prefix plus four letters.
+name_prefix = "bat"
+
+[llm]
+# Any OpenRouter slug. "openrouter/auto" lets OpenRouter pick; naming a
+# specific model gives you predictable behaviour and cost.
+model = "openrouter/auto"
+# Better set as OPENROUTER_API_KEY in the environment.
+api_key = ""
+base_url = "https://openrouter.ai/api/v1"
+temperature = 0.3
+max_output_tokens = 1024
+request_timeout = 60.0
+max_retries = 3
+
+# How often the planner may be consulted. Reflexes are unaffected.
+max_requests_per_minute = 12
+# Hard caps for a session. 0 means no limit. When a cap is reached the planner
+# stops and the client keeps running on reflexes and manual input.
+max_requests = 0
+max_total_tokens = 0
+max_spend_usd = 0.0
+
+[safety]
+# Fractions of maximum health, read from control codes 50/51. In co-pilot mode
+# these are proposals you still have to accept: BatMUD's `help robot` forbids
+# scripts that move your character on their own, and names fleeing as the
+# example. Only pager replies and the anti-idle poke are sent unprompted.
+hp_retreat_fraction = 0.35    # disengage when a fight is going badly
+hp_emergency_fraction = 0.15  # get out now
+retreat_command = "flee"
+emergency_commands = ["flee"]
+
+# Pacing. Commands also wait for the server's prompt (IAC GA) before going out.
+min_command_interval = 0.75
+max_commands_per_minute = 40
+# How long to wait for a prompt before sending anyway, so a missing Go-Ahead
+# cannot wedge the session.
+prompt_timeout = 5.0
+
+# Nothing reaches the socket without passing these, whoever proposed it.
+denied_commands = [
+    "quit",
+    "suicide",
+    "delete",
+    "reincarnate",
+    "password",
+    "shutdown",
+    "who",
+]
+denied_patterns = [
+    '^\s*(give|drop)\s+all\b',
+    '^\s*sell\s+all\b',
+    '^\s*(shout|yell)\b',
+]
+# Off by default so the agent cannot talk to other players on your behalf.
+allow_communication = false
+
+[agent]
+# Co-pilot is the default and is what BatMUD's rules expect. See the README.
+autonomous = false
+goal = "Explore safely, gain experience, and stay alive."
+# Consult the planner after this long with nothing happening.
+idle_seconds = 20.0
+# Lines of game output included in each planner request.
+max_recent_lines = 60
+anti_idle = true
+anti_idle_seconds = 240.0
+
+# Where the persistent map and the agent's notes are kept.
+# data_dir = "~/.local/share/batmud"
+# log_file = "batmud.log"
+log_level = "INFO"

@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "batmud-ai-client"
+version = "0.2.0"
+description = "An AI co-pilot for BatMUD built on the BatClient control-code protocol"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [{ name = "thevilledev" }]
+keywords = ["batmud", "mud", "llm", "openrouter", "textual"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment :: Multi-User Dungeons (MUD)",
+]
+dependencies = [
+    "openai>=1.60",
+    "textual>=1.0",
+    "rich>=13.9",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[project.scripts]
+batmud = "batmud.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/thevilledev/batmud-ai-client"
+Repository = "https://github.com/thevilledev/batmud-ai-client"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/batmud"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RUF", # ruff-specific
+]
+ignore = [
+    "B008", # function call in default argument
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/batmud"]
+strict = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["textual.*", "openai.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

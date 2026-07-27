@@ -10,7 +10,7 @@ generate_message() {
     weapon=${WEAPONS[$RANDOM % ${#WEAPONS[@]}]}
     action=${ACTIONS[$RANDOM % ${#ACTIONS[@]}]}
     effect=${EFFECTS[$RANDOM % ${#EFFECTS[@]}]}
-    
+
     echo -e "\033[1;32m>>> BatMUD Combat Log <<<\033[0m"
     echo -e "\033[1;33mA wild $monster appears!\033[0m"
     echo -e "\033[1;36mYou grab your $weapon and $action the $monster, $effect!\033[0m"
