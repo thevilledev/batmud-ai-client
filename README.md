@@ -55,11 +55,12 @@ play manually.
 
 ## Install
 
+Install [uv](https://docs.astral.sh/uv/) first, then:
+
 ```bash
 git clone https://github.com/thevilledev/batmud-ai-client
 cd batmud-ai-client
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
+uv sync
 ```
 
 ## Run
@@ -69,24 +70,24 @@ export OPENROUTER_API_KEY=sk-or-...
 export BATMUD_CHARACTER=YourCharacter
 export BATMUD_PASSWORD=yourpassword
 
-batmud
+uv run batmud
 ```
 
 Make a new character instead:
 
 ```bash
-BATMUD_PASSWORD=yourpassword batmud --mode create
+BATMUD_PASSWORD=yourpassword uv run batmud --mode create
 ```
 
 Useful flags:
 
 ```bash
-batmud --model anthropic/claude-sonnet-4   # pick a specific model
-batmud --goal "Find the newbie shop and buy armour"
-batmud --max-spend 1.00                    # stop planning after a dollar
-batmud --autonomous                        # read the section above first
-batmud --print-config                      # show resolved settings and exit
-batmud --help
+uv run batmud --model anthropic/claude-sonnet-4   # pick a specific model
+uv run batmud --goal "Find the newbie shop and buy armour"
+uv run batmud --max-spend 1.00                    # stop planning after a dollar
+uv run batmud --autonomous                        # read the section above first
+uv run batmud --print-config                      # show resolved settings and exit
+uv run batmud --help
 ```
 
 Copy [`batmud.example.toml`](batmud.example.toml) to `batmud.toml` to set
@@ -200,11 +201,11 @@ src/batmud/
 ## Development
 
 ```bash
-pip install -e '.[dev]'
-pytest          # 237 tests
-ruff check .
-ruff format .
-mypy
+uv sync
+uv run pytest          # 237 tests
+uv run ruff check .
+uv run ruff format .
+uv run mypy
 ```
 
 Tests are offline: the protocol suite replays a recorded capture of the real
